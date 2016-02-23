@@ -8,6 +8,7 @@
 
 import UIKit
 import CoreBluetooth
+import AVFoundation
 
 extension UIColor {
     convenience init(r: Int, g: Int, b: Int, a: Int = 255) {
@@ -19,19 +20,13 @@ extension UIColor {
     }
 }
 
+extension String {
+    var count: Int {
+        get { return self.characters.count }
+    }
+}
+
 class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDelegate, CBPeripheralDelegate {
-    
-    private var buttons: [[UIButton]] = [[UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton()],
-                                         [UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton()],
-                                         [UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton()],
-                                         [UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton()],
-                                         [UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton(),UIButton()]]
-    
-    private let viewText: [[String]] = [["あ","か","さ","た","な","゛","は","ま","や","ら","わ","ん"],
-                                        ["い","き","し","ち","に","゜","ひ","み","い","り","ゐ","消"],
-                                        ["う","く","す","つ","ぬ","。","ふ","む","ゆ","る","う","消"],
-                                        ["え","け","せ","て","ね","、","へ","め","え","れ","ゑ","消"],
-                                        ["お","こ","そ","と","の","小","ほ","も","よ","ろ","を","消"]]
     
     //Value
     private var displaySize_width:    CGFloat!
@@ -40,6 +35,7 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     //private var mainLabel:    UILabel!
     private var contentText:  UITextView!
     private var nowPointa:    [Int] = [0, 0]
+    private var tmpPointa:    [Int] = [0, 0]
     
     //private var mainViewText: String!
     private var notesView:    String = ""
@@ -49,15 +45,55 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     private let UUID_TX:   CBUUID  =  CBUUID(string: "2a750d7d-bd9a-928f-b744-7d5a70cef1f9")
     private let UUID_RX:   CBUUID  =  CBUUID(string: "0503b819-c75b-ba9b-3641-6a7f338dd9bd")
     //BLE
-    private var ble_Uuids: NSMutableArray = NSMutableArray()
-    private var ble_Names: NSMutableArray = NSMutableArray()
-    private var ble_Peripheral: NSMutableArray = NSMutableArray()
-    
     private var ble_CentralManager: CBCentralManager!
     private var ble_TargetPeripheral: CBPeripheral!
+    private var ble_characteristic: CBCharacteristic!
+    private var bleBool: Bool = false
+    private var passIndicator: Bool = false
+    private var ble_sw: Bool = true
     
+    //Object
     private let indicator = ActivityIndicator()
+    private let mode      = GameMode()
+    private let buttonObj = ButtonController()
+    private let talker = AVSpeechSynthesizer()
     
+    
+    override func viewDidAppear(animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        if mode.getMode() == "new" {
+            let selectAlert: UIAlertController = UIAlertController(title: "使用方法", message: "使用方法を選択してください", preferredStyle: .Alert)
+            //MysticSD button push
+            let mysticSDAction = UIAlertAction(title: "MysticSD", style: .Default) { action in
+                //BLE START
+                self.ble_CentralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionShowPowerAlertKey: true])
+                //Indicator
+                self.indicator.start(self)
+                self.passIndicator = true
+                //Mode
+                self.mode.setMode("MysticSD")
+            }
+            //Manual button push
+            let manualAction = UIAlertAction(title: "Manual", style: .Default){ action in
+                //Mode
+                self.mode.setMode("Manual")
+            }
+            //Alert add view
+            selectAlert.addAction(mysticSDAction)
+            selectAlert.addAction(manualAction)
+            //Alert start
+            presentViewController(selectAlert, animated: true, completion: nil)
+        }else if mode.getMode() == "MysticSD" {
+            //BLE START
+            ble_CentralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionShowPowerAlertKey: true])
+            //Indicator
+            indicator.start(self)
+            passIndicator = true
+        }else{
+            ble_sw = false
+        }
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -70,68 +106,10 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
         displaySize_height = self.view.frame.height
         //++++++++++++++++++++++++
         
-        let leftLabelBK: UILabel = UILabel(frame: CGRectMake(0, 0, 250, 250))
-        leftLabelBK.backgroundColor = UIColor.whiteColor()
-        leftLabelBK.layer.masksToBounds = true
-        leftLabelBK.layer.cornerRadius = 10.0
-        leftLabelBK.layer.position = CGPoint(x: 150, y: 150)
-        self.view.addSubview(leftLabelBK)
+        let label = ColorLabel()
+        label.makeLabel(self)
         
-        let rightLabelBK: UILabel = UILabel(frame: CGRectMake(0, 0, 250, 250))
-        rightLabelBK.backgroundColor = UIColor.whiteColor()
-        rightLabelBK.layer.masksToBounds = true
-        rightLabelBK.layer.cornerRadius = 10.0
-        rightLabelBK.layer.position = CGPoint(x: 450, y: 150)
-        self.view.addSubview(rightLabelBK)
-        
-        let rightLabelBK2: UILabel = UILabel(frame: CGRectMake(0, 0, 50, 50))
-        rightLabelBK2.backgroundColor = UIColor.whiteColor()
-        rightLabelBK2.layer.masksToBounds = true
-        rightLabelBK2.layer.cornerRadius = 10.0
-        rightLabelBK2.layer.position = CGPoint(x: 600, y: 50)
-        self.view.addSubview(rightLabelBK2)
-        
-        let leftLabel: UILabel = UILabel(frame: CGRectMake(0, 0, 250, 250))
-        leftLabel.backgroundColor = UIColor.orangeColor()
-        leftLabel.layer.masksToBounds = true
-        leftLabel.layer.cornerRadius = 10.0
-        leftLabel.layer.position = CGPoint(x: 150, y: 150)
-        leftLabel.alpha = 0.5
-        self.view.addSubview(leftLabel)
-        
-        let rightLabel: UILabel = UILabel(frame: CGRectMake(0, 0, 250, 250))
-        rightLabel.backgroundColor = UIColor.blueColor()
-        rightLabel.layer.masksToBounds = true
-        rightLabel.layer.cornerRadius = 10.0
-        rightLabel.layer.position = CGPoint(x: 450, y: 150)
-        rightLabel.alpha = 0.5
-        self.view.addSubview(rightLabel)
-        
-        let rightLabel2: UILabel = UILabel(frame: CGRectMake(0, 0, 50, 50))
-        rightLabel2.backgroundColor = UIColor.blueColor()
-        rightLabel2.layer.masksToBounds = true
-        rightLabel2.layer.cornerRadius = 10.0
-        rightLabel2.layer.position = CGPoint(x: 600, y: 50)
-        rightLabel2.alpha = 0.5
-        self.view.addSubview(rightLabel2)
-        
-        for var y = 0; y < 5; y++ {
-            for var x = 0; x < 12; x++ {
-                buttons[y][x].frame = CGRectMake(0,0,40,40)
-                buttons[y][x].backgroundColor = UIColor.whiteColor()
-                buttons[y][x].layer.masksToBounds = true
-                buttons[y][x].setTitle(viewText[y][x], forState: UIControlState.Normal)
-                buttons[y][x].setTitleColor(UIColor.blackColor(), forState: UIControlState.Normal)
-                buttons[y][x].setTitle(viewText[y][x], forState: UIControlState.Highlighted)
-                buttons[y][x].setTitleColor(UIColor.redColor(), forState: UIControlState.Highlighted)
-                buttons[y][x].layer.cornerRadius = 10.0
-                buttons[y][x].layer.position = CGPoint(x: 50 * (x + 1), y: 50 * (y + 1))
-                buttons[y][x].tag = 1
-                buttons[y][x].alpha = 0.7
-                buttons[y][x].addTarget(self, action: "onClickButton:", forControlEvents: .TouchUpInside)
-                self.view.addSubview(buttons[y][x])
-            }
-        }
+        buttonObj.setButtons(self)
         
         contentText = UITextView(frame: CGRectMake(0, 0, displaySize_width - 100, displaySize_height - 300))
         contentText.backgroundColor = UIColor(r: 255, g: 255, b: 255)
@@ -151,49 +129,184 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
         contentText.layer.position = CGPoint(x: displaySize_width / 2, y: 325)
         self.view.addSubview(contentText)
         
-        //BLE START
-        ble_CentralManager = CBCentralManager(delegate: self, queue: nil, options: nil)
-        //Indicator
-        indicator.start(self)
         
         stringHighlight()
     }
     
     func onClickButton(sender: UIButton) {
         
-        if(sender == buttons[1][1]){
-
+        if sender == buttonObj.getButtonObject(4, x: 11) {
+            // setting mode
+            if bleBool {
+                ble_TargetPeripheral.setNotifyValue(false, forCharacteristic: ble_characteristic) //cut notification
+                ble_CentralManager.cancelPeripheralConnection(ble_TargetPeripheral) //cut ble
+                buttonObj.getButtonObject(4, x: 11).backgroundColor = UIColor.blueColor()
+                mode.setMode("Manual")
+                
+            }else if ble_sw {
+                if(passIndicator){
+                    indicator.activityIndicator.stopAnimating()
+                    ble_CentralManager.stopScan()
+                }
+                mode.setMode("Manual")
+                ble_sw = !ble_sw
+            }else{
+                //Indicator stop
+                if(passIndicator){
+                    indicator.activityIndicator.stopAnimating()
+                }
+                //BLE START
+                ble_CentralManager = CBCentralManager(delegate: self, queue: nil, options: [CBCentralManagerOptionShowPowerAlertKey: true])
+                //Indicator
+                indicator.start(self)
+                passIndicator = true
+                mode.setMode("MysticSD")
+                ble_sw = !ble_sw
+            }
+        }else{
+            // touch input mode
+            // color init **********
+            for var y = 0; y < 5; y++ {
+                for var x = 0; x < 12; x++ {
+                    buttonObj.getButtonObject(y, x: x).backgroundColor = UIColor.whiteColor()
+                    buttonObj.getButtonObject(y, x: x).setTitleColor(UIColor.blackColor(), forState: UIControlState.Normal)
+                    buttonObj.getButtonObject(y, x: x).alpha = 0.7
+                }
+            }
+            if bleBool {
+                buttonObj.getButtonObject(4, x: 11).backgroundColor = UIColor.redColor()
+                buttonObj.getButtonObject(4, x: 11).setTitleColor(UIColor.whiteColor(), forState: UIControlState.Normal)
+            }else{
+                buttonObj.getButtonObject(4, x: 11).backgroundColor = UIColor.blueColor()
+                buttonObj.getButtonObject(4, x: 11).setTitleColor(UIColor.whiteColor(), forState: UIControlState.Normal)
+            }
+            // *********************
+            
+            for var y = 0; y < 5; y++ {
+                for var x = 0; x < 5; x++ {
+                    if sender == buttonObj.getButtonObject(y, x: x) {
+                        pointColor(y, x: x)
+                        let data = buttonObj.getButtonText(y, x: x)
+                        notesView += data
+                        contentText.text = notesView
+                        voiceOut(data)
+                        
+                        tmpPointa[0] = x
+                        tmpPointa[1] = y
+                    }
+                }
+            }
+            for var y = 0; y < 5; y++ {
+                for var x = 6; x < 11; x++ {
+                    if sender == buttonObj.getButtonObject(y, x: x) {
+                        pointColor(y, x: x)
+                        let data = buttonObj.getButtonText(y, x: x)
+                        notesView += data
+                        contentText.text = notesView
+                        voiceOut(data)
+                        
+                        tmpPointa[0] = x
+                        tmpPointa[1] = y
+                    }
+                }
+            }
+            
+            if sender == buttonObj.getButtonObject(0, x: 11) {
+                pointColor(0, x: 11)
+                let data = buttonObj.getButtonText(0, x: 11)
+                notesView += data
+                contentText.text = notesView
+                voiceOut(data)
+                
+                tmpPointa[0] = 11
+                tmpPointa[1] = 0
+            }else if sender == buttonObj.getButtonObject(2, x: 5) {
+                pointColor(2, x: 5)
+                notesView += buttonObj.getButtonText(2, x: 5)
+                contentText.text = notesView
+                
+                tmpPointa[0] = 5
+                tmpPointa[1] = 2
+            }else if sender == buttonObj.getButtonObject(3, x: 5) {
+                pointColor(3, x: 5)
+                notesView += buttonObj.getButtonText(3, x: 5)
+                contentText.text = notesView
+                
+                tmpPointa[0] = 5
+                tmpPointa[1] = 3
+            }else if sender == buttonObj.getButtonObject(0, x: 5) {
+                pointColor(0, x: 5)
+                //dakuten
+                let data = buttonObj.getDackText(tmpPointa[1], x: tmpPointa[0])
+                chgText(data)
+                voiceOut(data)
+            }else if sender == buttonObj.getButtonObject(1, x: 5) {
+                pointColor(1, x: 5)
+                //handakuten
+                let data = buttonObj.getHDakText(tmpPointa[1], x: tmpPointa[0])
+                chgText(data)
+                voiceOut(data)
+            }else if sender == buttonObj.getButtonObject(4, x: 5) {
+                pointColor(4, x: 5)
+                //mini
+                let data = buttonObj.getMiniText(tmpPointa[1], x: tmpPointa[0])
+                chgText(data)
+                voiceOut(data)
+            }else if sender == buttonObj.getButtonObject(1, x: 11) {
+                pointColor(1, x: 11)
+                chgText("")
+                voiceOut("戻る")
+            }else if sender == buttonObj.getButtonObject(3, x: 11) {
+                pointColor(3, x: 11)
+                chgText("")
+                voiceOut("戻る")
+            }else if sender == buttonObj.getButtonObject(2, x: 11) {
+                pointColor(2, x: 11)
+                voiceOut(notesView)
+            }
         }
     }
     
+    func pointColor(y: Int, x: Int){
+        buttonObj.getButtonObject(y, x: x).backgroundColor = UIColor(r: 255, g: 20, b: 147)
+        buttonObj.getButtonObject(y, x: x).setTitleColor(UIColor.whiteColor(), forState: UIControlState.Normal)
+        buttonObj.getButtonObject(y, x: x).alpha = 1.0
+    }
+    
     func stringHighlight(){
-        buttons[nowPointa[1]][nowPointa[0]].backgroundColor = UIColor(r: 255, g: 20, b: 147)
-        buttons[nowPointa[1]][nowPointa[0]].setTitleColor(UIColor.whiteColor(), forState: UIControlState.Normal)
-        buttons[nowPointa[1]][nowPointa[0]].alpha = 1.0
+        buttonObj.getButtonObject(nowPointa[1], x: nowPointa[0]).backgroundColor = UIColor(r: 255, g: 20, b: 147)
+        buttonObj.getButtonObject(nowPointa[1], x: nowPointa[0]).setTitleColor(UIColor.whiteColor(), forState: UIControlState.Normal)
+        buttonObj.getButtonObject(nowPointa[1], x: nowPointa[0]).alpha = 1.0
     }
     
     func backHighlight(){
-        buttons[nowPointa[1]][nowPointa[0]].backgroundColor = UIColor.whiteColor()
-        buttons[nowPointa[1]][nowPointa[0]].setTitleColor(UIColor.blackColor(), forState: UIControlState.Normal)
-        buttons[nowPointa[1]][nowPointa[0]].alpha = 0.7
+        buttonObj.getButtonObject(nowPointa[1], x: nowPointa[0]).backgroundColor = UIColor.whiteColor()
+        buttonObj.getButtonObject(nowPointa[1], x: nowPointa[0]).setTitleColor(UIColor.blackColor(), forState: UIControlState.Normal)
+        buttonObj.getButtonObject(nowPointa[1], x: nowPointa[0]).alpha = 0.7
     }
     
     func rightMove(){
         backHighlight()
-        
         if nowPointa[0] == 11 {
             nowPointa[0] = 0
         }else{
-            nowPointa[0]++
+            if nowPointa[0] == 10 && nowPointa[1] == 4 {
+                nowPointa[0] = 0
+            }else{
+                nowPointa[0]++
+            }
         }
         stringHighlight()
     }
     
     func leftMove(){
         backHighlight()
-        
         if nowPointa[0] == 0 {
-            nowPointa[0] = 11
+            if nowPointa[1] == 4 {
+                nowPointa[0] = 10
+            }else{
+                nowPointa[0] = 11
+            }
         }else{
             nowPointa[0]--
         }
@@ -202,9 +315,12 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     
     func upMove(){
         backHighlight()
-        
         if nowPointa[1] == 0 {
-            nowPointa[1] = 4
+            if nowPointa[0] == 11 {
+                nowPointa[1] = 3
+            }else{
+                nowPointa[1] = 4
+            }
         }else{
             nowPointa[1]--
         }
@@ -213,18 +329,68 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     
     func downMove(){
         backHighlight()
-        
         if nowPointa[1] == 4 {
             nowPointa[1] = 0
         }else{
-            nowPointa[1]++
+            if nowPointa[1] == 3 && nowPointa[0] == 11 {
+                nowPointa[1] = 0
+            }else{
+                nowPointa[1]++
+            }
         }
         stringHighlight()
     }
+    
     //Decision
     func stringDecision(){
-        notesView += viewText[nowPointa[1]][nowPointa[0]]
+        if nowPointa[1] == 0 && nowPointa[0] == 5 {
+            //dakuten
+            let data = buttonObj.getDackText(tmpPointa[1], x: tmpPointa[0])
+            chgText(data)
+            voiceOut(data)
+        }else if nowPointa[1] == 1 && nowPointa[0] == 5 {
+            //handakuten
+            let data = buttonObj.getHDakText(tmpPointa[1], x: tmpPointa[0])
+            chgText(data)
+            voiceOut(data)
+        }else if nowPointa[1] == 4 && nowPointa[0] == 5 {
+            //mini
+            let data = buttonObj.getMiniText(tmpPointa[1], x: tmpPointa[0])
+            chgText(data)
+            voiceOut(data)
+        }else if (nowPointa[1] == 1 || nowPointa[1] == 3) && nowPointa[0] == 11 {
+            chgText("")
+            voiceOut("戻る")
+        }else if nowPointa[1] == 2 && nowPointa[0] == 11 {
+            voiceOut(notesView)
+        }else{
+            //Normal
+            let data = buttonObj.getButtonText(nowPointa[1], x: nowPointa[0])
+            notesView += data
+            contentText.text = notesView
+            voiceOut(data)
+            
+            tmpPointa[0] = nowPointa[0]
+            tmpPointa[1] = nowPointa[1]
+        }
+    }
+    
+    func chgText(inputS: String){
+        if notesView.count <= 0 {
+            notesView = ""
+        }else{
+            notesView = notesView.substringToIndex(notesView.startIndex.advancedBy(notesView.count - 1))
+        }
+        //NSLog("\(notesView.substringToIndex(notesView.startIndex.advancedBy(notesView.count - 1)))")
+        notesView += inputS
         contentText.text = notesView
+    }
+    
+    func voiceOut(out: String){
+        let utterance = AVSpeechUtterance(string: out)
+        utterance.voice = AVSpeechSynthesisVoice(language: "ja-JP")
+        //utterance.pitchMultiplier = 1.2
+        talker.speakUtterance(utterance)
     }
     
     //TextView
@@ -246,10 +412,7 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     func centralManagerDidUpdateState(central: CBCentralManager) {
         switch(central.state){
         case .PoweredOff:
-            alert("Bluetooth OFF",messageString: "設定でBluetoothをオンにしてください", buttonString: "OK")
-            //Setting open
-            let url = NSURL(string: UIApplicationOpenSettingsURLString)
-            UIApplication.sharedApplication().openURL(url!)
+            break
         case .PoweredOn:
             //BLE Start
             ble_CentralManager.scanForPeripheralsWithServices(UUID_VSP, options: nil)
@@ -267,21 +430,11 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     func centralManager(central: CBCentralManager, didDiscoverPeripheral peripheral: CBPeripheral,
         advertisementData: [String: AnyObject], RSSI: NSNumber) {
             
-            var name:NSString? = advertisementData["kCBAdvDataLocalName"] as? NSString
-            if(name == nil){
-                name = "No name"
-            }
-            ble_Names.addObject(name!)
-            ble_Peripheral.addObject(peripheral)
-            ble_Uuids.addObject(peripheral.identifier.UUIDString)
+            let name:NSString? = advertisementData["kCBAdvDataLocalName"] as? NSString
             
             if name == "BLESerial2" {
                 //Indicator stop
                 indicator.activityIndicator.stopAnimating()
-                
-                //let remove = RemoveSubviews()
-                //View remove
-                //remove.removeAllSubviews(self.view, kind: "ble_start")
                 
                 //Start connect
                 self.ble_TargetPeripheral = peripheral
@@ -295,15 +448,20 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
         //showNotification("MysticSDとの接続に成功しました！")//MapCoreViewController class
         ble_CentralManager.stopScan()
         
+        bleBool = true
+        buttonObj.getButtonObject(4, x: 11).backgroundColor = UIColor.redColor()
+        
         //Find characteristics -> Go to "Find "Service" !"
         peripheral.delegate = self;
-        peripheral.discoverServices(nil)
+        peripheral.discoverServices(UUID_VSP)
         
     }
     
     func centralManager(central: CBCentralManager, didFailToConnectPeripheral peripheral: CBPeripheral, error: NSError?) {
         //let notification = Notification()
         //notification.showNotification("MysticSDとの接続に失敗しました！")//MapCoreViewController class
+        alert("Error",messageString: "MysticSDとの接続に失敗しました", buttonString: "OK")
+        ble_CentralManager.stopScan()
     }
     
     //Find "Service" !
@@ -343,7 +501,7 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
                 // move to "First write result"
                 //peripheral.readValueForCharacteristic(characteristic) // Read only once
                 peripheral.setNotifyValue(true, forCharacteristic: characteristic) // Notify
-                
+                ble_characteristic = characteristic
             }
         }
     }
@@ -383,7 +541,6 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
                 stringDecision()
             }
         }
-        
     }
     
     //First write result

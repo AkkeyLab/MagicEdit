@@ -56,6 +56,7 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
     private let indicator = ActivityIndicator()
     private let mode      = GameMode()
     private let buttonObj = ButtonController()
+    private let value     = CommonValue()
     private let talker = AVSpeechSynthesizer()
     
     
@@ -102,20 +103,27 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
         //self.view.backgroundColor = UIColor(r: 160, g: 216, b: 239)
         self.view.backgroundColor = UIColor.grayColor()
         
-        displaySize_width  = self.view.frame.width
-        displaySize_height = self.view.frame.height
+        value.setDisplaySize(self)
+        let check = CheckDisplay()
+        check.checkDisplaySize()
+        displaySize_width  = value.getDisplayWidth()
+        displaySize_height = value.getDisplayHeight()
         //++++++++++++++++++++++++
+        
+        let fix_x = value.getFix_x_size()
+        let fix_y = value.getFix_y_size()
+        let fix   = value.getFix_size()
         
         let label = ColorLabel()
         label.makeLabel(self)
         
         buttonObj.setButtons(self)
         
-        contentText = UITextView(frame: CGRectMake(0, 0, displaySize_width - 100, displaySize_height - 300))
+        contentText = UITextView(frame: CGRectMake(0, 0, displaySize_width - 100 * fix_x, displaySize_height - 300 * fix_y))
         contentText.backgroundColor = UIColor(r: 255, g: 255, b: 255)
         contentText.text = notesView
         contentText.layer.masksToBounds = true
-        contentText.layer.cornerRadius = 10.0
+        contentText.layer.cornerRadius = 10.0 * fix
         contentText.layer.borderWidth = 1
         contentText.layer.borderColor = UIColor.whiteColor().CGColor
         contentText.font = UIFont.systemFontOfSize(CGFloat(15))
@@ -123,10 +131,10 @@ class ViewController: UIViewController, UITextViewDelegate, CBCentralManagerDele
         contentText.textAlignment = NSTextAlignment.Left
         contentText.dataDetectorTypes = UIDataDetectorTypes.All
         contentText.layer.shadowOpacity = 0
-        contentText.editable = true
+        contentText.editable = false
         contentText.delegate = self
         contentText.alpha = 0.7
-        contentText.layer.position = CGPoint(x: displaySize_width / 2, y: 325)
+        contentText.layer.position = CGPoint(x: displaySize_width / 2, y: 325 * fix_y)
         self.view.addSubview(contentText)
         
         

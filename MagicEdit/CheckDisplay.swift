@@ -15,8 +15,9 @@ class CheckDisplay: NSObject {
         let width  = value.getDisplayWidth()
         let height = value.getDisplayHeight()
         
-        value.setFix_x_size(width / 375)
-        value.setFix_y_size(height / 618)
+        //Sideways ver
+        value.setFix_x_size(width / 667)
+        value.setFix_y_size(height / 375)//No TabBar!
         
         let fix_x  = value.getFix_x_size()
         let fix_y  = value.getFix_y_size()

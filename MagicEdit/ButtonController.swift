@@ -61,17 +61,25 @@ class ButtonController: NSObject {
     }
     
     func setButtons(myself: UIViewController){
+        let value = CommonValue()
+        let fix_x = value.getFix_x_size()
+        let fix_y = value.getFix_y_size()
+        let fix   = value.getFix_size()
+        
+        let fix_x_int = Double(fix_x)
+        let fix_y_int = Double(fix_y)
+        
         for var y = 0; y < 5; y++ {
             for var x = 0; x < 12; x++ {
-                buttons[y][x].frame = CGRectMake(0,0,40,40)
+                buttons[y][x].frame = CGRectMake(0, 0, 40 * fix, 40 * fix)
                 buttons[y][x].backgroundColor = UIColor.whiteColor()
                 buttons[y][x].layer.masksToBounds = true
                 buttons[y][x].setTitle(viewText[y][x], forState: UIControlState.Normal)
                 buttons[y][x].setTitleColor(UIColor.blackColor(), forState: UIControlState.Normal)
                 buttons[y][x].setTitle(viewText[y][x], forState: UIControlState.Highlighted)
                 buttons[y][x].setTitleColor(UIColor.redColor(), forState: UIControlState.Highlighted)
-                buttons[y][x].layer.cornerRadius = 10.0
-                buttons[y][x].layer.position = CGPoint(x: 50 * (x + 1), y: 50 * (y + 1))
+                buttons[y][x].layer.cornerRadius = 10.0 * fix
+                buttons[y][x].layer.position = CGPoint(x: Double(50 * (x + 1)) * fix_x_int, y: Double(50 * (y + 1)) * fix_y_int)
                 buttons[y][x].tag = 1
                 buttons[y][x].alpha = 0.7
                 buttons[y][x].addTarget(myself, action: "onClickButton:", forControlEvents: .TouchUpInside)

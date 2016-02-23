@@ -39,6 +39,7 @@ class CommonValue: NSObject {
     
     func setDisplaySize(myself: UIViewController){ //This is my class
         width   = myself.view.bounds.width
+        //No TabBar!
         height  = myself.view.bounds.height //- myself.tabBarController!.tabBar.frame.size.height
         
         defaults.setDouble(Double(width), forKey: "displayWidth")

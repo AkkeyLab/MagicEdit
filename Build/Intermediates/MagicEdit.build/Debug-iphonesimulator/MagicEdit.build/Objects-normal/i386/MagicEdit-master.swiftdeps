@@ -1,6 +1,0 @@
-version: "Apple Swift version 2.1 (swiftlang-700.1.101.6 clang-700.1.76)"
-options: "7c5dcfe1c006670c79c742924628f662"
-build_time: [505216553, 356494000]
-inputs:
-  "/Users/AKIO/Documents/Program/Xcode/MagicEdit/MagicEdit/AppDelegate.swift": [502102797, 0]
-  "/Users/AKIO/Documents/Program/Xcode/MagicEdit/MagicEdit/ViewController.swift": [505216531, 0]

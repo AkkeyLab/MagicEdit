@@ -1,8 +1,0 @@
-version: "Apple Swift version 2.1 (swiftlang-700.1.101.6 clang-700.1.76)"
-options: "881e2f3ebf729cb3f04ef94d51f02298"
-build_time: [505243695, 848873000]
-inputs:
-  "/Users/AKIO/Documents/Program/Xcode/MagicEdit/MagicEdit/ActivityIndicator.swift": [505223081, 0]
-  "/Users/AKIO/Documents/Program/Xcode/MagicEdit/MagicEdit/AppDelegate.swift": [502102797, 0]
-  "/Users/AKIO/Documents/Program/Xcode/MagicEdit/MagicEdit/RemoveSubviews.swift": [505222858, 0]
-  "/Users/AKIO/Documents/Program/Xcode/MagicEdit/MagicEdit/ViewController.swift": [505243693, 0]
